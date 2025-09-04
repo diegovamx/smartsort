@@ -101,10 +101,8 @@ def custom_classification_sink(result, video_frame):
 
 # create an inference pipeline object
 pipeline = InferencePipeline.init(
-    model_id="classification-waste/11",  # Classification model
-    # model_id="greenai-v2-v4sv0/2",  # Classification model
-    # model_id="capstone-ywhzy/3",
-    # model_id="garbage-lzfii/4", # set the model id to a yolov8x model with in put size 1280
+    # model_id="classification-waste/11",  # Classification model
+     model_id="garbage-lzfii/4", # set the model id to a yolov8x model with in put size 1280
     video_reference=0, # set the video reference (source of video), it can be a link/path to a video file, an RTSP stream url, or an integer representing a device id (usually 0 for built in webcams)
     on_prediction=custom_classification_sink, # Use custom classification sink
     api_key="Mqg6MjfPG888hkIAilqR", # provide your roboflow api key for loading models from the roboflow api
