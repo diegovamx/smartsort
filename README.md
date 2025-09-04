@@ -1,100 +1,177 @@
-# SmartSort - Raspberry Pi Object Detection
+# SmartSort - AI-Powered Waste Classification with Analytics Dashboard
 
-This project uses Roboflow Inference to perform real-time object detection on a Raspberry Pi.
+SmartSort is an intelligent waste classification system that uses AI to identify different types of waste and provides real-time analytics through a beautiful web dashboard.
 
-## Prerequisites
+## 🚀 Features
 
-- Raspberry Pi 4 Model B or Raspberry Pi 5
-- 64-bit Raspberry Pi OS (recommended: "Raspberry Pi OS with desktop and recommended software")
-- Camera module or USB camera
-- Roboflow account and API key
+- **Real-time AI Classification**: Uses Roboflow models to classify waste in real-time
+- **Web Analytics Dashboard**: Beautiful, responsive web interface showing live results
+- **5-Second Intervals**: Configurable timing for classification frequency
+- **Real-time Updates**: WebSocket-powered live data streaming
+- **Statistics & Charts**: Visual analytics including detection distribution
+- **Mobile Responsive**: Works on desktop, tablet, and mobile devices
 
-## Setup Instructions
+## 🏗️ System Architecture
 
-### 1. Install Dependencies
+```
+SmartSort Script (smartsort.py)
+           ↓
+    HTTP POST to Dashboard
+           ↓
+    Flask Web Server (web_server.py)
+           ↓
+    WebSocket → Real-time Dashboard
+```
 
-Install the required packages manually:
+## 📋 Requirements
+
+- Python 3.7+
+- Webcam or camera module
+- Roboflow API key
+- Internet connection for model inference
+
+## 🛠️ Installation
+
+1. **Install Python dependencies:**
+
+   ```bash
+   pip3 install -r requirements.txt
+   ```
+
+2. **Configure your Roboflow API key** in `smartsort.py`
+
+## 🚀 Quick Start
+
+### Option 1: Automated Startup (Recommended)
 
 ```bash
-# Install Python dependencies
-pip install roboflow opencv-python inference-sdk
-
-# Install inference CLI
-pip install inference-cli
-
-# Start inference server
-inference server start
+python3 start_dashboard.py
 ```
 
-### 2. Configure Your Model
+### Option 2: Manual Startup
 
-Edit `smartsort.py` and replace the placeholder values:
+1. **Start the dashboard:**
 
-```python
-pipeline = InferencePipeline(
-    model_id="YOUR_PROJECT/YOUR_VERSION",  # Replace with your actual project ID and version
-    api_key="YOUR_API_KEY",               # Replace with your Roboflow API key
-)
-```
+   ```bash
+   python3 web_server.py
+   ```
 
-### 3. Run the Application
+2. **In a new terminal, run SmartSort:**
 
-```bash
-python smartsort.py
-```
+   ```bash
+   python3 smartsort.py
+   ```
 
-## Performance Expectations
+3. **Open your browser** to `http://localhost:8080`
 
-- **Raspberry Pi 4**: ~1 FPS with "Roboflow 3.0 Fast" models
-- **Raspberry Pi 5**: ~4 FPS with "Roboflow 3.0 Fast" models
+## 📊 Dashboard Features
 
-## Troubleshooting
+### Live Statistics
 
-### Camera Issues
+- Total detections
+- Unique classes detected
+- Average confidence scores
+- Last update timestamp
 
-If you get camera errors, try:
+### Detection Distribution Chart
 
-- Checking camera connections
-- Running `sudo raspi-config` and enabling camera
-- Using a different camera index: `cv2.VideoCapture(1)`
+- Doughnut chart showing class distribution
+- Real-time updates as new detections occur
 
-### Performance Issues
+### Recent Results
 
-- Use smaller models for better performance
-- Consider using a USB 3.0 camera for better frame rates
-- Close other applications to free up resources
+- Live feed of classification results
+- Frame numbers and timestamps
+- Confidence scores for each prediction
 
-### Server Issues
+## ⚙️ Configuration
 
-If the inference server fails to start:
+### SmartSort Script (`smartsort.py`)
 
-```bash
-# Check if Docker is running
-sudo systemctl status docker
+- **Detection Interval**: Change `detection_interval = 5.0` for different timing
+- **Model ID**: Update `model_id` to use different Roboflow models
+- **Camera Source**: Modify `video_reference` for different video sources
 
-# Restart Docker if needed
-sudo systemctl restart docker
+### Dashboard (`web_server.py`)
 
-# Try manual container start
-sudo docker run -d \
-    --name inference-server \
-    --read-only \
-    -p 9001:9001 \
-    --volume ~/.inference/cache:/tmp:rw \
-    --security-opt="no-new-privileges" \
-    --cap-drop="ALL" \
-    --cap-add="NET_BIND_SERVICE" \
-    roboflow/roboflow-inference-server-cpu:latest
-```
+- **Port**: Change port 8080 if needed
+- **Host**: Modify host binding for network access
+- **Data Retention**: Adjust `MAX_RESULTS` for memory usage
 
-## Controls
+## 🌐 Network Access
 
-- **ESC key**: Exit the application
-- The application will display real-time object detection results
+To access the dashboard from other devices on your network:
 
-## Next Steps
+1. **Find your IP address:**
 
-1. Replace the model_id with your actual Roboflow project details
-2. Test with your camera
-3. Customize the confidence threshold and visualization
-4. Integrate with sorting mechanisms if needed
+   ```bash
+   ifconfig  # macOS/Linux
+   ipconfig  # Windows
+   ```
+
+2. **Access from other devices:**
+   ```
+   http://YOUR_IP_ADDRESS:8080
+   ```
+
+## 📱 Raspberry Pi Deployment
+
+Perfect for IoT waste sorting projects:
+
+1. **Install on Pi:**
+
+   ```bash
+   sudo apt update
+   sudo apt install python3-pip python3-opencv
+   pip3 install -r requirements.txt
+   ```
+
+2. **Run headless:**
+
+   ```bash
+   python3 web_server.py &
+   python3 smartsort.py
+   ```
+
+3. **Access from any device** on your network
+
+## 🔧 Troubleshooting
+
+### Dashboard won't start
+
+- Check if port 8080 is available
+- Verify all dependencies are installed
+- Check console for error messages
+
+### No data in dashboard
+
+- Ensure SmartSort script is running
+- Check network connectivity
+- Verify API endpoints are working
+
+### Camera issues
+
+- Check camera permissions
+- Try different `video_reference` values
+- Verify camera is not in use by other applications
+
+## 📈 Future Enhancements
+
+- **Data Export**: CSV/JSON export of results
+- **Historical Analysis**: Long-term trend analysis
+- **Image Storage**: Save classified images
+- **Alert System**: Notifications for specific classes
+- **Multi-Camera Support**: Multiple camera feeds
+- **Database Integration**: Persistent data storage
+
+## 🤝 Contributing
+
+Feel free to submit issues, feature requests, or pull requests to improve SmartSort!
+
+## 📄 License
+
+This project is open source and available under the MIT License.
+
+---
+
+**Happy Sorting! 🗑️♻️🌱**
