@@ -2,8 +2,8 @@ import time
 import os
 import numpy as np
 from datetime import datetime
-from picamera import PiCamera
-from picamera.array import PiRGBArray
+from picamera2 import Picamera2, Preview
+#from picamera2.array import PiRGBArray
 from inference_sdk import InferenceHTTPClient
 
 # Global variables for motion detection
@@ -32,7 +32,7 @@ def capture_and_analyze(camera):
 
     try:
         print(f"\n📸 Capturing image with PiCamera...")
-        camera.capture(filename)
+        camera.capture_file(filename)
         print(f"✅ Picture saved: {filename}")
 
         print("🔄 Running classification inference on captured image...")
@@ -110,10 +110,23 @@ def detect_motion(prev_frame, curr_frame):
 def motion_detection_loop():
     global capture_triggered, last_capture_time, capture_cooldown, motion_detected_time, capture_delay, classification_in_progress
 
-    camera = PiCamera()
+    print("1")
+    camera = Picamera2()
+    print("2")
     camera.resolution = (640, 480)
+    print("3")
     camera.framerate = 10
-    raw_capture = PiRGBArray(camera, size=(640, 480))
+    print("4")
+    camera_config = camera.create_preview_configuration()
+    print("5")
+    camera.configure(camera_config)
+    print("6")
+    camera.start_preview()
+    print("7")
+    camera.start()
+    print("8")
+    raw_capture = camera.capture_array()
+    print("9")
 
     print("🎥 Starting motion detection with PiCamera (no OpenCV)...")
     print("💡 Press Ctrl+C to stop")
@@ -123,24 +136,25 @@ def motion_detection_loop():
     prev_frame = None
 
     try:
-        for frame in camera.capture_continuous(raw_capture, format="rgb", use_video_port=True):
+        while True:
+            raw_capture = camera.capture_array()
             current_time = time.time()
-            curr_frame = frame.array
+            curr_frame = raw_capture
 
             if prev_frame is None:
                 prev_frame = np.copy(curr_frame)
-                raw_capture.truncate(0)
+                #raw_capture.truncate(0)
                 continue
 
             # Cooldown
             if current_time - last_capture_time < capture_cooldown:
                 print(f"\r⏳ Cooldown: {capture_cooldown - (current_time - last_capture_time):.1f}s remaining", end="", flush=True)
-                raw_capture.truncate(0)
+                #raw_capture.truncate(0)
                 continue
 
             if classification_in_progress:
                 print(f"\r🔄 Classification in progress...", end="", flush=True)
-                raw_capture.truncate(0)
+                #raw_capture.truncate(0)
                 time.sleep(0.5)
                 continue
 
@@ -178,7 +192,7 @@ def motion_detection_loop():
                     print(f"\r⏳ No motion detected (score: {motion_score:.0f})", end="", flush=True)
 
             prev_frame = np.copy(curr_frame)
-            raw_capture.truncate(0)
+            #raw_capture.truncate(0)
             time.sleep(0.1)
 
     except KeyboardInterrupt:
@@ -203,13 +217,11 @@ def main():
     print(f"  • Capture delay: {capture_delay} seconds")
     print(f"  • Capture cooldown: {capture_cooldown} seconds")
     print("=" * 60)
-
+    
     try:
         motion_detection_loop()
     except KeyboardInterrupt:
         print("\n🛑 Stopping motion detection...")
-    except Exception as e:
-        print(f"❌ Error: {e}")
     print("✅ Motion detection stopped")
 
 if __name__ == "__main__":
