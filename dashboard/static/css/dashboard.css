@@ -468,10 +468,103 @@ body {
 .classification-item {
     padding: 0.5rem 0;
     border-bottom: 1px solid var(--border-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .classification-item:last-child {
     border-bottom: none;
+}
+
+.classification-item .d-flex {
+    flex-grow: 1;
+}
+
+.classification-count {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.classification-count-badge {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    min-width: 24px;
+    text-align: center;
+}
+
+/* Bulk Selection Styles */
+.bulk-select-mode {
+    border: 2px solid #ffc107 !important;
+    box-shadow: 0 0 10px rgba(255, 193, 7, 0.3) !important;
+}
+
+.bulk-select-checkbox {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 10;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.bulk-select-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+}
+
+/* System Management Styles */
+.system-item {
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    height: 100%;
+}
+
+.system-status {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.system-status.status-active {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+}
+
+.system-status.status-warning {
+    background: linear-gradient(135deg, #ffc107, #fd7e14);
+    color: white;
+}
+
+.system-status.status-danger {
+    background: linear-gradient(135deg, #dc3545, #e83e8c);
+    color: white;
+}
+
+.system-details {
+    margin-top: 0.5rem;
+}
+
+.system-details small {
+    font-size: 0.8rem;
+    line-height: 1.4;
 }
 
 /* Responsive adjustments */

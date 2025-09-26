@@ -1,22 +1,12 @@
 {
-  "detection_20250911_151510_1.jpg": {
-    "classification": "clothes",
-    "confidence": 80.06,
-    "timestamp": "2025-09-11T15:15:12.774678"
+  "detection_20250924_165517_1.jpg": {
+    "classification": "paper",
+    "confidence": 100,
+    "timestamp": "2025-09-24T16:58:02.167000"
   },
-  "detection_20250911_151517_2.jpg": {
-    "classification": "biological",
-    "confidence": 93.92,
-    "timestamp": "2025-09-11T15:15:18.447695"
-  },
-  "detection_20250911_151523_3.jpg": {
+  "detection_20250924_165600_3.jpg": {
     "classification": "plastic",
-    "confidence": 92.78999999999999,
-    "timestamp": "2025-09-11T15:15:24.651974"
-  },
-  "detection_20250911_151529_4.jpg": {
-    "classification": "white-glass",
-    "confidence": 95.67999999999999,
-    "timestamp": "2025-09-11T15:15:30.853218"
+    "confidence": 93.61,
+    "timestamp": "2025-09-24T16:56:01.596908"
   }
 }

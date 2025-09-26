@@ -5,6 +5,8 @@ import numpy as np
 import json
 from datetime import datetime
 from inference_sdk import InferenceHTTPClient
+import requests
+import threading
 
 # Global variables for motion detection
 frame_count = 0
@@ -15,9 +17,9 @@ motion_threshold = 5000  # Minimum area of motion to trigger capture
 min_motion_frames = 5  # Number of consecutive frames with motion required
 motion_frame_count = 0
 last_capture_time = 0
-capture_cooldown = 5.0  # seconds between captures
+capture_cooldown = 20.0  # seconds between captures (allows full UI interaction cycle)
 motion_detected_time = 0
-capture_delay = 1.0  # seconds to wait after motion before capturing
+capture_delay = 2.0  # seconds to wait after motion before capturing
 
 def save_classification_result(filename, classification, confidence):
     """
@@ -46,16 +48,73 @@ def save_classification_result(filename, classification, confidence):
         with open(results_file, 'w') as f:
             json.dump(results, f, indent=2)
         print(f"💾 Classification result saved to {results_file}")
+        
+        # Send real-time update to dashboard
+        send_realtime_update(filename, classification, confidence)
+        
         return True
     except Exception as e:
         print(f"❌ Error saving classification result: {e}")
         return False
 
+def send_frontend_refresh():
+    """
+    Send refresh signal to frontend to automatically reload the page
+    """
+    try:
+        # Send refresh signal to dashboard
+        response = requests.post(
+            'http://localhost:5001/api/refresh_frontend',
+            json={'refresh': True},
+            timeout=2
+        )
+        
+        if response.status_code == 200:
+            print("🔄 Frontend refresh signal sent!")
+        else:
+            print(f"⚠️ Failed to send refresh signal: {response.status_code}")
+            
+    except Exception as e:
+        print(f"⚠️ Frontend refresh failed: {str(e)}")
+        # Don't fail the main process if refresh fails
+
+def send_realtime_update(filename, classification, confidence):
+    """
+    Send real-time update to the dashboard via HTTP request
+    """
+    try:
+        # Convert confidence to percentage if needed
+        confidence_pct = confidence * 100 if confidence <= 1 else confidence
+        
+        update_data = {
+            'filename': filename,
+            'classification': classification,
+            'confidence': round(confidence_pct, 2),
+            'timestamp': datetime.now().isoformat(),
+            'image_path': f"images/{filename}"
+        }
+        
+        # Send to dashboard (assuming it's running on localhost:5001)
+        response = requests.post(
+            'http://localhost:5001/api/realtime_update',
+            json=update_data,
+            timeout=2
+        )
+        
+        if response.status_code == 200:
+            print(f"📡 Sent real-time update: {classification}")
+        else:
+            print(f"⚠️ Failed to send real-time update: {response.status_code}")
+            
+    except Exception as e:
+        print(f"⚠️ Real-time update failed: {str(e)}")
+        # Don't fail the main process if real-time updates fail
+
 def capture_and_analyze(frame):
     """
     Save the current frame and run classification inference
     """
-    global frame_count, classification_in_progress
+    global frame_count, classification_in_progress, capture_cooldown
     
     frame_count += 1
     classification_in_progress = True
@@ -90,9 +149,9 @@ def capture_and_analyze(frame):
             workspace_name="smartsort-vfpxc",
             workflow_id="smartsort-classify-v1",
             #alternative models
-                #workflow_id="smartsort-classify-simple-v2",
+                # workflow_id="smartsort-classify-simple-v2",
                 # workflow_id="smartsort-classify-simple-v3",
-                #workflow_id="smartsort-classify-simple-v4",
+                # workflow_id="smartsort-classify-simple-v4",
             images={
                 "image": filepath
             },
@@ -117,7 +176,7 @@ def capture_and_analyze(frame):
                     confidence = first_prediction.get('confidence', 0)
                     confidence_pct = confidence * 100 if isinstance(confidence, (int, float)) else confidence
                     
-                    print(f"   🎯 {classification} (confidence: {confidence_pct:.1f}%)")
+                    print(f"   🎯 {classification} (confidence: {confidence_pct:.2f}%)")
                 else:
                     print("   ❌ No predictions found")
             elif isinstance(result, dict):
@@ -130,7 +189,7 @@ def capture_and_analyze(frame):
                         confidence = first_prediction.get('confidence', 0)
                         confidence_pct = confidence * 100 if isinstance(confidence, (int, float)) else confidence
                         
-                        print(f"   🎯 {classification} (confidence: {confidence_pct:.1f}%)")
+                        print(f"   🎯 {classification} (confidence: {confidence_pct:.2f}%)")
                     else:
                         print("   ❌ No predictions found")
                 else:
@@ -138,13 +197,67 @@ def capture_and_analyze(frame):
             else:
                 print(f"   ❌ Unexpected result type: {type(result)}")
             
-            # Save classification result for dashboard (save all results, including Unknown)
-            save_classification_result(filename, classification, confidence * 100 if confidence <= 1 else confidence)
+            # Check if we have valid predictions or Unknown classification
+            if classification == "Unknown" or (classification == "Unknown" and confidence == 0.0):
+                print("❌ Unknown classification - resetting to camera feed")
+                print("🔄 Please scan again with a clearer view of the object")
+                
+                # Save "Unknown" result
+                save_classification_result(filename, "Unknown", 0.0)
+                
+                # Send refresh signal to frontend to go back to camera
+                send_frontend_refresh()
+                
+                # Set shorter cooldown for unknown classifications
+                original_cooldown = capture_cooldown
+                capture_cooldown = 5.0  # 5 second cooldown for unknown
+                
+                # Reset cooldown after 5 seconds
+                import threading
+                def reset_cooldown():
+                    global capture_cooldown
+                    capture_cooldown = original_cooldown
+                threading.Timer(5.0, reset_cooldown).start()
+                
+                return True
+            else:
+                # Save classification result for dashboard (valid classifications)
+                confidence_value = confidence * 100 if confidence <= 1 else confidence
+                save_classification_result(filename, classification, round(confidence_value, 2))
         else:
             print("❌ No classification results for captured image")
+            print("🔄 Please scan again with a clearer view of the object")
+            
+            # Save "No Result" for failed classification
+            save_classification_result(filename, "No Result", 0.0)
+            
+            # Send refresh signal to frontend
+            send_frontend_refresh()
+            
+            # Set shorter cooldown for no results
+            original_cooldown = capture_cooldown
+            capture_cooldown = 5.0  # 5 second cooldown for no results
+            
+            # Reset cooldown after 5 seconds
+            import threading
+            def reset_cooldown():
+                global capture_cooldown
+                capture_cooldown = original_cooldown
+            threading.Timer(5.0, reset_cooldown).start()
+            
+            return True
         
-        # Classification complete, reset flag
-        classification_in_progress = False
+        # Keep classification in progress for full UI interaction period
+        # UI needs: 3s processing + 5s guessing + 3s result + 9s cooldown = 20s total
+        print(f"⏳ UI interaction period: 20 seconds (processing + guessing + result + cooldown)")
+        print(f"🔄 Classification in progress for UI interaction...")
+        
+        # Send refresh signal to frontend to switch to UI
+        print("🔄 Sending refresh signal to switch to UI...")
+        send_frontend_refresh()
+        
+        # Don't reset classification_in_progress immediately
+        # It will be reset by the cooldown period in the main loop
         return True
         
     except Exception as e:
@@ -224,7 +337,41 @@ def motion_detection_loop():
             detect_motion(frame)  # Initialize background model
         time.sleep(0.033)  # ~30fps
     
-    print("✅ Background learning complete! Motion detection active.")
+    print("✅ Background learning complete!")
+    
+    print("🎯 Motion detection ready!")
+    print("=" * 50)
+    print("📋 SYSTEM READY - Press ENTER to start motion detection")
+    print("=" * 50)
+    
+    # Create a status file to indicate system is ready
+    status_file = os.path.join('detected_images', 'system_status.json')
+    os.makedirs('detected_images', exist_ok=True)
+    
+    with open(status_file, 'w') as f:
+        json.dump({
+            'system_ready': True,
+            'timestamp': datetime.now().isoformat(),
+            'message': 'System ready for motion detection'
+        }, f)
+    
+    # Wait for user to press Enter
+    input()
+    
+    # Send refresh signal to frontend
+    send_frontend_refresh()
+    
+    print("🚀 Motion detection starting in 10 seconds...")
+    print("⏰ Get ready to place an object in front of the camera!")
+    
+    # Countdown before starting motion detection
+    for i in range(10, 0, -1):
+        print(f"⏳ Starting in {i}...", end="", flush=True)
+        time.sleep(1)
+        print("\r" + " " * 20 + "\r", end="", flush=True)  # Clear the line
+    
+    print("🎯 Motion detection active! Place an object in front of the camera.")
+    print("💡 Press 'q' to quit, or Ctrl+C to stop")
     
     try:
         while True:
@@ -232,7 +379,14 @@ def motion_detection_loop():
             
             # Check cooldown period
             if current_time - last_capture_time < capture_cooldown:
-                print(f"\r⏳ Cooldown: {capture_cooldown - (current_time - last_capture_time):.1f}s remaining", end="", flush=True)
+                remaining = capture_cooldown - (current_time - last_capture_time)
+                print(f"\r⏳ Cooldown: {remaining:.1f}s remaining", end="", flush=True)
+                
+                # Reset classification_in_progress when cooldown is almost over
+                if remaining < 2.0 and classification_in_progress:
+                    print(f"\n✅ UI interaction complete, ready for next detection")
+                    classification_in_progress = False
+                
                 time.sleep(0.1)
                 continue
             

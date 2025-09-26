@@ -8,15 +8,19 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <link href="{{ url_for('static', filename='css/dashboard.css') }}" rel="stylesheet">
 </head>
 <body>
     <nav class="navbar navbar-dark">
         <div class="container-fluid">
             <span class="navbar-brand mb-0 h1">
-                <i class="fas fa-leaf me-2"></i> SmartSort Dashboard
+                <i class="fas fa-recycle me-2"></i> SmartSort Dashboard
             </span>
             <div class="d-flex align-items-center">
+                <a href="/user" class="btn btn-outline-light me-3" style="border-radius: 25px; padding: 0.5rem 1.5rem; text-decoration: none;">
+                    <i class="fas fa-user me-2"></i> User UI
+                </a>
                 <button class="btn btn-outline-light me-3" onclick="refreshData()" style="border-radius: 25px; padding: 0.5rem 1.5rem;">
                     <i class="fas fa-sync-alt me-2"></i> Refresh
                 </button>
@@ -31,73 +35,87 @@
     </nav>
 
     <div class="container-fluid mt-4">
-        <!-- Statistics and Classification Breakdown -->
-        <div class="row mb-5">
-            <!-- Statistics Cards -->
+        <!-- Statistics, System Management, and Classification Breakdown -->
+        <div class="row mb-1">
+            <!-- Left Column: Statistics and System Management -->
             <div class="col-md-6 mb-4">
-                <div class="card">
+                <!-- Statistics Cards -->
+                <div class="card mb-3">
                     <div class="card-header">
                         <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i> Statistics</h5>
                     </div>
                     <div class="card-body">
                         <div class="row">
-                            <div class="col-6 mb-3">
+                            <div class="col-3 mb-2">
                                 <div class="card stats-card minimalist-card blue-card h-100">
                                     <div class="card-body text-center">
-                                        <div class="stats-icon mb-2">
+                                        <div class="stats-icon mb-1">
                                             <i class="fas fa-images"></i>
                                         </div>
-                                        <h3 class="card-title mb-1" id="total-images">0</h3>
-                                        <p class="card-text mb-0">Total Images</p>
+                                        <h4 class="card-title mb-1" id="total-images">0</h4>
+                                        <p class="card-text mb-0 small">Total Images</p>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-6 mb-3">
+                            <div class="col-3 mb-2">
                                 <div class="card stats-card minimalist-card green-card h-100">
                                     <div class="card-body text-center">
-                                        <div class="stats-icon mb-2">
+                                        <div class="stats-icon mb-1">
                                             <i class="fas fa-check-circle"></i>
                                         </div>
-                                        <h3 class="card-title mb-1" id="total-classified">0</h3>
-                                        <p class="card-text mb-0">Classified</p>
+                                        <h4 class="card-title mb-1" id="total-classified">0</h4>
+                                        <p class="card-text mb-0 small">Classified</p>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-6 mb-3">
+                            <div class="col-3 mb-2">
                                 <div class="card stats-card minimalist-card orange-card h-100">
                                     <div class="card-body text-center">
-                                        <div class="stats-icon mb-2">
+                                        <div class="stats-icon mb-1">
                                             <i class="fas fa-question-circle"></i>
                                         </div>
-                                        <h3 class="card-title mb-1" id="unclassified">0</h3>
-                                        <p class="card-text mb-0">Unclassified</p>
+                                        <h4 class="card-title mb-1" id="unclassified">0</h4>
+                                        <p class="card-text mb-0 small">Unclassified</p>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-6 mb-3">
+                            <div class="col-3 mb-2">
                                 <div class="card stats-card minimalist-card purple-card h-100">
                                     <div class="card-body text-center">
-                                        <div class="stats-icon mb-2">
+                                        <div class="stats-icon mb-1">
                                             <i class="fas fa-chart-line"></i>
                                         </div>
-                                        <h3 class="card-title mb-1" id="avg-confidence">0%</h3>
-                                        <p class="card-text mb-0">Avg Confidence</p>
+                                        <h4 class="card-title mb-1" id="avg-confidence">0%</h4>
+                                        <p class="card-text mb-0 small">Avg Confidence</p>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
+                
+                <!-- Live Camera Feed -->
+                <div class="card mb-0">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-video me-2"></i> Live Camera Feed</h5>
+                    </div>
+                    <div class="card-body d-flex flex-column p-0" style="flex: 1;">
+                        <div class="camera-feed-container flex-grow-1 d-flex align-items-center justify-content-center" style="min-height: 0; padding: 10px;">
+                            <video id="dashboard-camera-feed" autoplay muted playsinline class="w-100" style="object-fit: cover; border-radius: 15px; max-width: 100%; max-height: 330px;"></video>
+                        </div>
+                    </div>
+                </div>
+                
             </div>
             
-            <!-- Classification Breakdown -->
+            <!-- Right Column: Classification Breakdown -->
             <div class="col-md-6 mb-4">
                 <div class="card">
                     <div class="card-header">
                         <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i> Classification Breakdown</h5>
                     </div>
                     <div class="card-body">
-                        <div class="chart-container" style="position: relative; height: 300px;">
+                        <div class="chart-container" style="position: relative; height: 400px;">
                             <canvas id="classificationChart"></canvas>
                         </div>
                         <div id="classification-legend" class="mt-3">
@@ -112,20 +130,31 @@
         </div>
 
         <!-- Images Grid -->
-        <div class="row">
+        <div class="row mt-0">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0"><i class="fas fa-images me-2"></i> Captured Images</h5>
-                        <div class="btn-group" role="group">
-                            <input type="radio" class="btn-check" name="view-mode" id="grid-view" autocomplete="off" checked>
-                            <label class="btn btn-outline-success" for="grid-view" style="border-radius: 20px 0 0 20px;">
-                                <i class="fas fa-th me-1"></i> Grid
-                            </label>
-                            <input type="radio" class="btn-check" name="view-mode" id="list-view" autocomplete="off">
-                            <label class="btn btn-outline-success" for="list-view" style="border-radius: 0 20px 20px 0;">
-                                <i class="fas fa-list me-1"></i> List
-                            </label>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-warning btn-sm" id="bulk-select-btn" onclick="toggleBulkSelect()">
+                                <i class="fas fa-check-square me-1"></i> Select
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" id="bulk-delete-btn" onclick="bulkDelete()" style="display: none;">
+                                <i class="fas fa-trash me-1"></i> Delete Selected
+                            </button>
+                            <button class="btn btn-outline-primary btn-sm" onclick="refreshData()">
+                                <i class="fas fa-sync-alt me-1"></i> Refresh
+                            </button>
+                            <div class="btn-group" role="group">
+                                <input type="radio" class="btn-check" name="view-mode" id="grid-view" autocomplete="off" checked>
+                                <label class="btn btn-outline-success" for="grid-view" style="border-radius: 20px 0 0 20px;">
+                                    <i class="fas fa-th me-1"></i> Grid
+                                </label>
+                                <input type="radio" class="btn-check" name="view-mode" id="list-view" autocomplete="off">
+                                <label class="btn btn-outline-success" for="list-view" style="border-radius: 0 20px 20px 0;">
+                                    <i class="fas fa-list me-1"></i> List
+                                </label>
+                            </div>
                         </div>
                     </div>
                     <div class="card-body">
@@ -183,3 +212,4 @@
     <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 </body>
 </html>
+
