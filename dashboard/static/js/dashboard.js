@@ -40,6 +40,97 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeDashboardCamera();
 });
 
+// Initialize camera for dashboard
+async function initializeDashboardCamera() {
+  try {
+    const video = document.getElementById('dashboard-camera-feed');
+    if (!video) {
+      console.log('📹 Dashboard camera element not found');
+      return;
+    }
+    
+    console.log('📹 Initializing dashboard camera...');
+    
+    // Try different camera configurations for USB cameras
+    let constraints = [
+      // Try with specific resolution first
+      {
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 }
+        }
+      },
+      // Fallback to any resolution
+      {
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          frameRate: { ideal: 30 }
+        }
+      },
+      // Fallback to basic video
+      {
+        video: true
+      }
+    ];
+    
+    let cameraStream = null;
+    let lastError = null;
+    
+    // Try each constraint until one works
+    for (let i = 0; i < constraints.length; i++) {
+      try {
+        console.log(`📹 Trying dashboard camera constraint ${i + 1}/${constraints.length}...`);
+        cameraStream = await navigator.mediaDevices.getUserMedia(constraints[i]);
+        console.log(`✅ Dashboard camera constraint ${i + 1} successful!`);
+        break;
+      } catch (error) {
+        console.log(`❌ Dashboard camera constraint ${i + 1} failed:`, error.message);
+        lastError = error;
+        continue;
+      }
+    }
+    
+    if (!cameraStream) {
+      throw lastError || new Error('No camera constraints worked');
+    }
+    
+    // Set up the video element
+    video.srcObject = cameraStream;
+    
+    // Wait for video to load
+    video.onloadedmetadata = function() {
+      console.log('📹 Dashboard video metadata loaded');
+      video.play().then(() => {
+        console.log('📹 Dashboard camera playing successfully');
+      }).catch(error => {
+        console.error('❌ Dashboard video play failed:', error);
+      });
+    };
+    
+    // Handle video errors
+    video.onerror = function(error) {
+      console.error('❌ Dashboard video error:', error);
+    };
+    
+    console.log('📹 Dashboard camera initialized successfully');
+    
+  } catch (error) {
+    console.error('❌ Dashboard camera initialization failed:', error);
+    console.log('💡 Make sure:');
+    console.log('   - Camera is connected and not being used by another app');
+    console.log('   - Browser has camera permissions');
+    console.log('   - Try refreshing the page');
+    
+    // Retry camera initialization after a delay
+    console.log('🔄 Retrying dashboard camera initialization in 3 seconds...');
+    setTimeout(() => {
+      initializeDashboardCamera();
+    }, 3000);
+  }
+}
+
 function updateCurrentTime() {
     const now = new Date();
     const timeString = now.toLocaleString();
