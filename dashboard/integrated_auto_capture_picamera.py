@@ -14,7 +14,7 @@ import io
 frame_count = 0
 capture_triggered = False
 classification_in_progress = False
-background_subtractor = None
+background_frame = None  # Store background frame for comparison
 motion_threshold = 5000  # Minimum area of motion to trigger capture
 min_motion_frames = 5  # Number of consecutive frames with motion required
 motion_frame_count = 0
@@ -266,37 +266,32 @@ def capture_and_analyze(frame):
 
 def detect_motion(frame):
     """
-    Detect motion in the frame using background subtraction
+    Detect motion in the frame using simple frame differencing
     """
-    global background_subtractor, motion_frame_count, motion_threshold, min_motion_frames
+    global background_frame, motion_frame_count, motion_threshold, min_motion_frames
     
-    # Initialize background subtractor if not already done
-    if background_subtractor is None:
-        import cv2
-        background_subtractor = cv2.createBackgroundSubtractorMOG2(
-            detectShadows=True,
-            varThreshold=50,
-            history=500
-        )
+    # Initialize background frame if not already done
+    if background_frame is None:
+        background_frame = frame.copy()
         return False, 0
     
-    # Apply background subtraction
-    fg_mask = background_subtractor.apply(frame)
+    # Convert frames to grayscale for comparison
+    if len(frame.shape) == 3:
+        current_gray = np.mean(frame, axis=2).astype(np.uint8)
+        background_gray = np.mean(background_frame, axis=2).astype(np.uint8)
+    else:
+        current_gray = frame
+        background_gray = background_frame
     
-    # Remove noise with morphological operations
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-    fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)
-    fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_CLOSE, kernel)
+    # Calculate absolute difference
+    diff = np.abs(current_gray.astype(np.int16) - background_gray.astype(np.int16))
     
-    # Find contours of motion
-    contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Apply threshold to create binary mask
+    threshold_value = 30  # Adjust this value to tune sensitivity
+    binary_mask = (diff > threshold_value).astype(np.uint8)
     
-    # Calculate total motion area
-    motion_area = 0
-    for contour in contours:
-        area = cv2.contourArea(contour)
-        if area > 100:  # Filter out small noise
-            motion_area += area
+    # Calculate motion area (sum of white pixels)
+    motion_area = np.sum(binary_mask)
     
     # Check if motion is significant enough
     if motion_area > motion_threshold:
@@ -335,7 +330,7 @@ def motion_detection_loop():
         for i in range(150):  # ~5 seconds at 30fps
             frame = camera.capture_array()
             if frame is not None:
-                detect_motion(frame)  # Initialize background model
+                detect_motion(frame)  # Initialize background frame
             time.sleep(0.033)  # ~30fps
         
         print("✅ Background learning complete!")
@@ -397,10 +392,8 @@ def motion_detection_loop():
                     time.sleep(0.5)  # Longer sleep to reduce CPU usage
                     continue
                 
-                # Capture frame from PiCamera
-                camera.capture(raw_capture, format="bgr")
-                frame = raw_capture.array
-                raw_capture.truncate(0)
+                # Capture frame from PiCamera2
+                frame = camera.capture_array()
                 
                 if frame is None:
                     print("❌ Error: Could not read frame from camera")
@@ -452,20 +445,20 @@ def motion_detection_loop():
                 print("📷 Camera closed")
     
     except Exception as e:
-        print(f"❌ Error initializing PiCamera: {e}")
+        print(f"❌ Error initializing PiCamera2: {e}")
         print("💡 Make sure you're running this on a Raspberry Pi with a camera connected")
         return
 
 def main():
-    print("🚀 Starting SmartSort Motion-Based Auto-Capture (PiCamera Version)")
+    print("🚀 Starting SmartSort Motion-Based Auto-Capture (PiCamera2 Version)")
     print("=" * 70)
     print("📋 Features:")
-    print("  • Motion detection using background subtraction")
+    print("  • Motion detection using frame differencing")
     print("  • Automatic capture when motion detected")
     print("  • Instant classification after capture")
     print("  • Runs classification model on captured images")
     print("  • Dashboard integration - results saved to JSON")
-    print("  • PiCamera integration for Raspberry Pi")
+    print("  • PiCamera2 integration for Raspberry Pi")
     print("=" * 70)
     print("💡 Behavior:")
     print("  • Learns background for 5 seconds on startup")
