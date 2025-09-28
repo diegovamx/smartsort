@@ -472,6 +472,9 @@ function initializeInterface() {
   );
   hideClassificationResult();
   hideGuessingInterface();
+  
+  // Show the camera feed automatically
+  showCameraFeed();
 }
 
 function updateStatus(type, title, message) {

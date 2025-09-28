@@ -62,9 +62,23 @@ def choose_camera_version():
     print(f"   OpenCV available: {system_info['has_cv2']}")
     
     # Decision logic
-    if system_info['is_raspberry_pi'] and system_info['has_picamera']:
-        print("✅ Using PiCamera version (Raspberry Pi + PiCamera)")
-        return 'picamera'
+    if system_info['is_raspberry_pi']:
+        if system_info['has_picamera']:
+            print("✅ Raspberry Pi detected with PiCamera support")
+            print("💡 You can use either:")
+            print("   - PiCamera (camera module): integrated_auto_capture_picamera.py")
+            print("   - USB Webcam (OpenCV): integrated_auto_capture.py")
+            print("   - Current choice: PiCamera")
+            return 'picamera'
+        elif system_info['has_cv2']:
+            print("✅ Raspberry Pi detected - using USB webcam (OpenCV)")
+            return 'cv2'
+        else:
+            print("❌ No camera library found on Raspberry Pi!")
+            print("💡 Please install either:")
+            print("   - OpenCV: pip install opencv-python (for USB webcam)")
+            print("   - PiCamera: pip install picamera (for camera module)")
+            return None
     elif system_info['has_cv2']:
         print("✅ Using OpenCV version (Standard computer)")
         return 'cv2'
@@ -84,8 +98,14 @@ def run_detection_system(camera_type):
             integrated_auto_capture_picamera.main()
         except Exception as e:
             print(f"❌ Error running PiCamera version: {e}")
-            print("💡 Falling back to OpenCV version...")
-            return run_detection_system('cv2')
+            print("💡 Falling back to OpenCV version (USB webcam)...")
+            # Check if OpenCV is available for fallback
+            try:
+                import cv2
+                return run_detection_system('cv2')
+            except ImportError:
+                print("❌ OpenCV not available for fallback")
+                return False
     
     elif camera_type == 'cv2':
         print("🚀 Starting OpenCV detection system...")
