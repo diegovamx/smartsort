@@ -1,14 +1,14 @@
 import RPi.GPIO as GPIO
 import time
 # The numbers are the pun numbers of the GPIO pins on the pi
-CLK = 11 #pulses when set to 0 + moves 1 step
-DIR = 13 #direction, 0 = CCW, 1 = CW
+DIR = 11 #pulses when set to 0 + moves 1 step
+CLK = 13 #direction, 0 = CCW, 1 = CW
 ENA = 15 #0 = off, 1 = on
 delay = 0.000001 # the clock pulses + time between them has to be this many seconds minimum
 
-trash = ... # of steps to take
-recycling = ...
-compost = ...
+trash = 40 # of steps to take
+recycling = 80
+compost = 120
 stuff = {"trash": trash, "recycling":recycling, "compost": compost}
 
 def initialize_gpio():
