@@ -8,5 +8,20 @@
     "classification": "plastic",
     "confidence": 93.61,
     "timestamp": "2025-09-24T16:56:01.596908"
+  },
+  "detection_20250928_104324_1.jpg": {
+    "classification": "Unknown",
+    "confidence": 0.0,
+    "timestamp": "2025-09-28T10:43:30.111945"
+  },
+  "detection_20250928_104346_2.jpg": {
+    "classification": "white-glass",
+    "confidence": 95.99,
+    "timestamp": "2025-09-28T10:43:54.648096"
+  },
+  "detection_20250928_104456_6.jpg": {
+    "classification": "biological",
+    "confidence": 48.29,
+    "timestamp": "2025-09-28T10:44:57.534351"
   }
 }
