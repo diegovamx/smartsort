@@ -44,11 +44,11 @@ class SmartSortLauncher:
         return True
     
     def start_detection_system(self):
-        """Start the detection system"""
-        print("🎥 Starting Detection System...")
+        """Start the detection system with auto-detection"""
+        print("🎥 Starting Detection System with auto-detection...")
         try:
             self.detection_process = subprocess.Popen([
-                sys.executable, 'integrated_auto_capture.py'
+                sys.executable, 'auto_detect_camera.py'
             ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             
             # Wait a moment for detection system to initialize

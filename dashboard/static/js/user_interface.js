@@ -54,22 +54,85 @@ async function initializeCamera() {
     const video = document.getElementById('camera-feed');
     if (!video) return;
     
-    // Request camera access
-    cameraStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-        facingMode: 'environment' // Use back camera if available
-      }
-    });
+    console.log('📹 Initializing camera...');
     
+    // Try different camera configurations for USB cameras
+    let constraints = [
+      // Try with specific resolution first
+      {
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 }
+        }
+      },
+      // Fallback to any resolution
+      {
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          frameRate: { ideal: 30 }
+        }
+      },
+      // Fallback to basic video
+      {
+        video: true
+      }
+    ];
+    
+    let cameraStream = null;
+    let lastError = null;
+    
+    // Try each constraint until one works
+    for (let i = 0; i < constraints.length; i++) {
+      try {
+        console.log(`📹 Trying camera constraint ${i + 1}/${constraints.length}...`);
+        cameraStream = await navigator.mediaDevices.getUserMedia(constraints[i]);
+        console.log(`✅ Camera constraint ${i + 1} successful!`);
+        break;
+      } catch (error) {
+        console.log(`❌ Camera constraint ${i + 1} failed:`, error.message);
+        lastError = error;
+        continue;
+      }
+    }
+    
+    if (!cameraStream) {
+      throw lastError || new Error('No camera constraints worked');
+    }
+    
+    // Set up the video element
     video.srcObject = cameraStream;
-    video.play();
+    
+    // Wait for video to load
+    video.onloadedmetadata = function() {
+      console.log('📹 Video metadata loaded');
+      video.play().then(() => {
+        console.log('📹 Camera playing successfully');
+      }).catch(error => {
+        console.error('❌ Video play failed:', error);
+      });
+    };
+    
+    // Handle video errors
+    video.onerror = function(error) {
+      console.error('❌ Video error:', error);
+    };
     
     console.log('📹 Camera initialized successfully');
     
   } catch (error) {
     console.error('❌ Camera initialization failed:', error);
+    console.log('💡 Make sure:');
+    console.log('   - Camera is connected and not being used by another app');
+    console.log('   - Browser has camera permissions');
+    console.log('   - Try refreshing the page');
+    
+    // Retry camera initialization after a delay
+    console.log('🔄 Retrying camera initialization in 3 seconds...');
+    setTimeout(() => {
+      initializeCamera();
+    }, 3000);
   }
 }
 
@@ -96,12 +159,24 @@ function hideCameraFeed() {
 
 // Show camera feed
 function showCameraFeed() {
+  console.log('📹 showCameraFeed() called');
   const cameraContainer = document.querySelector(".camera-feed-container");
   if (cameraContainer) {
     cameraContainer.style.display = "block";
+    console.log('📹 Camera container shown');
+  } else {
+    console.error('❌ Camera container not found!');
   }
   
   // Show scan overlay when camera is displayed
+  const scanOverlay = document.querySelector('.scan-overlay');
+  if (scanOverlay) {
+    scanOverlay.style.display = 'block';
+    console.log('📹 Scan overlay shown');
+  } else {
+    console.error('❌ Scan overlay not found!');
+  }
+  
   updateStatus("ready", "Ready to Scan", "Scan Trash");
 }
 
@@ -472,6 +547,9 @@ function initializeInterface() {
   );
   hideClassificationResult();
   hideGuessingInterface();
+  
+  // Show the camera feed automatically
+  showCameraFeed();
 }
 
 function updateStatus(type, title, message) {

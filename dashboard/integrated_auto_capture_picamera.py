@@ -1,18 +1,20 @@
 import time
 import os
-import cv2
 import numpy as np
 import json
 from datetime import datetime
 from inference_sdk import InferenceHTTPClient
 import requests
 import threading
+from picamera2 import Picamera2
+from libcamera import Transform
+import io
 
 # Global variables for motion detection
 frame_count = 0
 capture_triggered = False
 classification_in_progress = False
-background_subtractor = None
+background_frame = None  # Store background frame for comparison
 motion_threshold = 15000  # Minimum area of motion to trigger capture (less sensitive)
 min_motion_frames = 8  # Number of consecutive frames with motion required (more stable)
 motion_frame_count = 0
@@ -20,6 +22,9 @@ last_capture_time = 0
 capture_cooldown = 20.0  # seconds between captures (allows full UI interaction cycle)
 motion_detected_time = 0
 capture_delay = 2.0  # seconds to wait after motion before capturing
+
+# Initialize picamera2
+camera = None
 
 def save_classification_result(filename, classification, confidence):
     """
@@ -83,26 +88,19 @@ def send_realtime_update(filename, classification, confidence):
     Send real-time update to the dashboard via HTTP request
     """
     try:
-        # Convert confidence to percentage if needed
-        confidence_pct = confidence * 100 if confidence <= 1 else confidence
-        
-        update_data = {
-            'filename': filename,
-            'classification': classification,
-            'confidence': round(confidence_pct, 2),
-            'timestamp': datetime.now().isoformat(),
-            'image_path': f"images/{filename}"
-        }
-        
-        # Send to dashboard (assuming it's running on localhost:5001)
         response = requests.post(
             'http://localhost:5001/api/realtime_update',
-            json=update_data,
+            json={
+                'filename': filename,
+                'classification': classification,
+                'confidence': confidence,
+                'timestamp': datetime.now().isoformat()
+            },
             timeout=2
         )
         
         if response.status_code == 200:
-            print(f"📡 Sent real-time update: {classification}")
+            print("📡 Real-time update sent to dashboard")
         else:
             print(f"⚠️ Failed to send real-time update: {response.status_code}")
             
@@ -132,7 +130,10 @@ def capture_and_analyze(frame):
         print(f"\n📸 Capturing image...")
         
         # Save the current frame
-        cv2.imwrite(filepath, frame)
+        # Convert numpy array to image and save
+        from PIL import Image
+        img = Image.fromarray(frame)
+        img.save(filepath)
         print(f"✅ Picture saved: {filepath}")
         
         # Run classification inference immediately on the captured image
@@ -213,7 +214,6 @@ def capture_and_analyze(frame):
                 capture_cooldown = 5.0  # 5 second cooldown for unknown
                 
                 # Reset cooldown after 5 seconds
-                import threading
                 def reset_cooldown():
                     global capture_cooldown
                     capture_cooldown = original_cooldown
@@ -239,7 +239,6 @@ def capture_and_analyze(frame):
             capture_cooldown = 5.0  # 5 second cooldown for no results
             
             # Reset cooldown after 5 seconds
-            import threading
             def reset_cooldown():
                 global capture_cooldown
                 capture_cooldown = original_cooldown
@@ -267,36 +266,32 @@ def capture_and_analyze(frame):
 
 def detect_motion(frame):
     """
-    Detect motion in the frame using background subtraction
+    Detect motion in the frame using simple frame differencing
     """
-    global background_subtractor, motion_frame_count, motion_threshold, min_motion_frames
+    global background_frame, motion_frame_count, motion_threshold, min_motion_frames
     
-    # Initialize background subtractor if not already done
-    if background_subtractor is None:
-        background_subtractor = cv2.createBackgroundSubtractorMOG2(
-            detectShadows=True,
-            varThreshold=50,
-            history=500
-        )
+    # Initialize background frame if not already done
+    if background_frame is None:
+        background_frame = frame.copy()
         return False, 0
     
-    # Apply background subtraction
-    fg_mask = background_subtractor.apply(frame)
+    # Convert frames to grayscale for comparison
+    if len(frame.shape) == 3:
+        current_gray = np.mean(frame, axis=2).astype(np.uint8)
+        background_gray = np.mean(background_frame, axis=2).astype(np.uint8)
+    else:
+        current_gray = frame
+        background_gray = background_frame
     
-    # Remove noise with morphological operations
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-    fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)
-    fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_CLOSE, kernel)
+    # Calculate absolute difference
+    diff = np.abs(current_gray.astype(np.int16) - background_gray.astype(np.int16))
     
-    # Find contours of motion
-    contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Apply threshold to create binary mask
+    threshold_value = 30  # Adjust this value to tune sensitivity
+    binary_mask = (diff > threshold_value).astype(np.uint8)
     
-    # Calculate total motion area
-    motion_area = 0
-    for contour in contours:
-        area = cv2.contourArea(contour)
-        if area > 100:  # Filter out small noise
-            motion_area += area
+    # Calculate motion area (sum of white pixels)
+    motion_area = np.sum(binary_mask)
     
     # Check if motion is significant enough
     if motion_area > motion_threshold:
@@ -311,167 +306,159 @@ def detect_motion(frame):
 
 def motion_detection_loop():
     """
-    Main motion detection loop using OpenCV
+    Main motion detection loop using PiCamera2
     """
-    global capture_triggered, last_capture_time, capture_cooldown, motion_detected_time, capture_delay, classification_in_progress
+    global capture_triggered, last_capture_time, capture_cooldown, motion_detected_time, capture_delay, classification_in_progress, camera
     
-    # Initialize webcam
-    cap = cv2.VideoCapture(0)
-    
-    if not cap.isOpened():
-        print("❌ Error: Could not open webcam")
-        return
-    
-    # Set camera resolution
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-    
-    print("🎥 Starting motion detection...")
-    print("💡 Press 'q' to quit, or Ctrl+C to stop")
-    
-    # Give camera time to adjust and learn background
-    print("🔄 Learning background (5 seconds)...")
-    for i in range(150):  # ~5 seconds at 30fps
-        ret, frame = cap.read()
-        if ret:
-            detect_motion(frame)  # Initialize background model
-        time.sleep(0.033)  # ~30fps
-    
-    print("✅ Background learning complete!")
-    
-    print("🎯 Motion detection ready!")
-    print("=" * 50)
-    print("📋 SYSTEM READY - Press ENTER to start motion detection")
-    print("=" * 50)
-    
-    # Create a status file to indicate system is ready
-    status_file = os.path.join('detected_images', 'system_status.json')
-    os.makedirs('detected_images', exist_ok=True)
-    
-    with open(status_file, 'w') as f:
-        json.dump({
-            'system_ready': True,
-            'timestamp': datetime.now().isoformat(),
-            'message': 'System ready for motion detection'
-        }, f)
-    
-    # Wait for user to press Enter
-    input()
-    
-    # Send refresh signal to frontend
-    send_frontend_refresh()
-    
-    print("🚀 Motion detection starting in 10 seconds...")
-    print("⏰ Get ready to place an object in front of the camera!")
-    
-    # Countdown before starting motion detection
-    for i in range(10, 0, -1):
-        print(f"⏳ Starting in {i}...", end="", flush=True)
-        time.sleep(1)
-        print("\r" + " " * 20 + "\r", end="", flush=True)  # Clear the line
-    
-    print("🎯 Motion detection active! Place an object in front of the camera.")
-    print("💡 Press 'q' to quit, or Ctrl+C to stop")
-    
+    # Initialize PiCamera2
     try:
-        while True:
-            current_time = time.time()
-            
-            # Check cooldown period
-            if current_time - last_capture_time < capture_cooldown:
-                remaining = capture_cooldown - (current_time - last_capture_time)
-                print(f"\r⏳ Cooldown: {remaining:.1f}s remaining", end="", flush=True)
+        camera = Picamera2()
+        camera_config = camera.create_still_configuration(
+            main={"size": (1280, 720), "format": "RGB888"}
+        )
+        camera.configure(camera_config)
+        camera.start()
+        
+        # Allow camera to warm up
+        time.sleep(2)
+        
+        print("🎥 Starting motion detection with PiCamera2...")
+        print("💡 Press 'q' to quit, or Ctrl+C to stop")
+        
+        # Give camera time to adjust and learn background
+        print("🔄 Learning background (5 seconds)...")
+        for i in range(150):  # ~5 seconds at 30fps
+            frame = camera.capture_array()
+            if frame is not None:
+                detect_motion(frame)  # Initialize background frame
+            time.sleep(0.033)  # ~30fps
+        
+        print("✅ Background learning complete!")
+        
+        print("🎯 Motion detection ready!")
+        print("=" * 50)
+        print("📋 SYSTEM READY - Press ENTER to start motion detection")
+        print("=" * 50)
+        
+        # Create a status file to indicate system is ready
+        status_file = os.path.join('detected_images', 'system_status.json')
+        os.makedirs('detected_images', exist_ok=True)
+        
+        with open(status_file, 'w') as f:
+            json.dump({
+                'system_ready': True,
+                'timestamp': datetime.now().isoformat(),
+                'message': 'System ready for motion detection'
+            }, f)
+        
+        # Wait for user to press Enter
+        input()
+        
+        # Send refresh signal to frontend
+        send_frontend_refresh()
+        
+        print("🚀 Motion detection starting in 10 seconds...")
+        print("⏰ Get ready to place an object in front of the camera!")
+        
+        # Countdown before starting motion detection
+        for i in range(10, 0, -1):
+            print(f"⏳ Starting in {i}...", end="", flush=True)
+            time.sleep(1)
+            print("\r" + " " * 20 + "\r", end="", flush=True)  # Clear the line
+        
+        print("🎯 Motion detection active! Place an object in front of the camera.")
+        print("💡 Press 'q' to quit, or Ctrl+C to stop")
+        
+        try:
+            while True:
+                current_time = time.time()
                 
-                # Reset classification_in_progress when cooldown is almost over
-                if remaining < 2.0 and classification_in_progress:
-                    print(f"\n✅ UI interaction complete, ready for next detection")
-                    classification_in_progress = False
+                # Check cooldown period
+                if current_time - last_capture_time < capture_cooldown:
+                    remaining = capture_cooldown - (current_time - last_capture_time)
+                    print(f"\r⏳ Cooldown: {remaining:.1f}s remaining", end="", flush=True)
+                    
+                    # Reset classification_in_progress when cooldown is almost over
+                    if remaining < 2.0 and classification_in_progress:
+                        print(f"\n✅ UI interaction complete, ready for next detection")
+                        classification_in_progress = False
+                    
+                    time.sleep(0.1)
+                    continue
                 
-                time.sleep(0.1)
-                continue
-            
-            # Skip motion detection if classification is in progress
-            if classification_in_progress:
-                print(f"\r🔄 Classification in progress...", end="", flush=True)
-                time.sleep(0.5)  # Longer sleep to reduce CPU usage
-                continue
-            
-            # Read frame from webcam only when not in classification
-            ret, frame = cap.read()
-            if not ret:
-                print("❌ Error: Could not read frame from webcam")
-                break
-            
-            # Detect motion
-            motion_detected, motion_area = detect_motion(frame)
-            
-            if motion_detected and not capture_triggered and not classification_in_progress and motion_detected_time == 0:
-                # First time motion is detected - start countdown
-                motion_detected_time = current_time
-                print(f"\n🔍 Motion detected! Area: {motion_area:.0f} pixels")
-                print(f"⏳ Waiting {capture_delay} seconds before capture...")
-            elif motion_detected_time != 0 and not capture_triggered and not classification_in_progress:
-                # Check if capture delay has passed
-                if current_time - motion_detected_time >= capture_delay:
-                    print(f"\n📸 Capture delay complete! Triggering capture...")
+                # Skip motion detection if classification is in progress
+                if classification_in_progress:
+                    print(f"\r🔄 Classification in progress...", end="", flush=True)
+                    time.sleep(0.5)  # Longer sleep to reduce CPU usage
+                    continue
+                
+                # Capture frame from PiCamera2
+                frame = camera.capture_array()
+                
+                if frame is None:
+                    print("❌ Error: Could not read frame from camera")
+                    break
+                
+                # Detect motion in the frame
+                motion_detected, motion_area = detect_motion(frame)
+                
+                if motion_detected:
+                    print(f"\n🎯 Motion detected! Area: {motion_area:.0f} pixels")
                     
-                    # Set flag to prevent multiple captures
-                    capture_triggered = True
-                    last_capture_time = current_time
-                    motion_detected_time = 0  # Reset motion detection time
-                    
-                    # Capture and analyze using current frame
-                    success = capture_and_analyze(frame)
-                    
-                    if success:
-                        print(f"✅ Automatic capture and analysis completed!")
-                        print(f"⏳ Cooldown: {capture_cooldown} seconds before next detection...")
+                    # Check if we're in the delay period
+                    if motion_detected_time == 0:
+                        motion_detected_time = current_time
+                        print(f"⏳ Waiting {capture_delay} seconds before capture...")
+                        continue
+                    elif current_time - motion_detected_time >= capture_delay:
+                        # Time to capture!
+                        print(f"📸 Capturing image after {capture_delay}s delay...")
+                        
+                        # Capture and analyze the image
+                        if capture_and_analyze(frame):
+                            last_capture_time = current_time
+                            capture_triggered = True
+                            motion_detected_time = 0  # Reset motion detection
+                        else:
+                            print("❌ Automatic capture failed!")
+                            motion_detected_time = 0  # Reset motion detection
                     else:
-                        print("❌ Automatic capture failed!")
-                    
-                    print("=" * 50)
-                    
-                    # Reset flag
-                    capture_triggered = False
+                        # Still in delay period
+                        remaining = capture_delay - (current_time - motion_detected_time)
+                        print(f"\r⏳ Capture in {remaining:.1f}s...", end="", flush=True)
                 else:
-                    # Still in capture delay period - show countdown
-                    remaining = capture_delay - (current_time - motion_detected_time)
-                    print(f"\r⏳ Capturing in: {remaining:.1f}s", end="", flush=True)
-            elif not classification_in_progress:
-                # No motion detected, reset motion detection time only if we're not in capture delay period
-                if motion_detected_time != 0 and current_time - motion_detected_time < capture_delay:
-                    # Still in capture delay period, don't reset - continue countdown
-                    remaining = capture_delay - (current_time - motion_detected_time)
-                    print(f"\r⏳ Capturing in: {remaining:.1f}s", end="", flush=True)
-                else:
-                    # No motion and not in capture delay period, reset
+                    # No motion detected, reset motion timer
                     if motion_detected_time != 0:
                         motion_detected_time = 0
-                    print(f"\r⏳ No motion detected (area: {motion_area:.0f})", end="", flush=True)
-            
-            # Show live feed (optional - comment out if you don't want to see the video)
-            # cv2.imshow('Motion Detection', frame)
-            # if cv2.waitKey(1) & 0xFF == ord('q'):
-            #     break
-            
-            time.sleep(0.033)  # ~30fps
-            
-    except KeyboardInterrupt:
-        print("\n🛑 Stopping motion detection...")
-    finally:
-        cap.release()
-        cv2.destroyAllWindows()
+                        print(f"\r🔍 Monitoring for motion...", end="", flush=True)
+                    else:
+                        print(f"\r🔍 Monitoring for motion...", end="", flush=True)
+                
+                # Small delay to prevent excessive CPU usage
+                time.sleep(0.033)  # ~30fps
+                
+        except KeyboardInterrupt:
+            print("\n🛑 Stopping motion detection...")
+        finally:
+            if camera:
+                camera.close()
+                print("📷 Camera closed")
+    
+    except Exception as e:
+        print(f"❌ Error initializing PiCamera2: {e}")
+        print("💡 Make sure you're running this on a Raspberry Pi with a camera connected")
+        return
 
 def main():
-    print("🚀 Starting SmartSort Motion-Based Auto-Capture (Dashboard Integrated)")
+    print("🚀 Starting SmartSort Motion-Based Auto-Capture (PiCamera2 Version)")
     print("=" * 70)
     print("📋 Features:")
-    print("  • Motion detection using background subtraction")
+    print("  • Motion detection using frame differencing")
     print("  • Automatic capture when motion detected")
     print("  • Instant classification after capture")
     print("  • Runs classification model on captured images")
     print("  • Dashboard integration - results saved to JSON")
-    print("  • 5-second cooldown between captures")
+    print("  • PiCamera2 integration for Raspberry Pi")
     print("=" * 70)
     print("💡 Behavior:")
     print("  • Learns background for 5 seconds on startup")
@@ -494,10 +481,13 @@ def main():
         motion_detection_loop()
         
     except KeyboardInterrupt:
-        print("\n🛑 Stopping motion detection...")
+        print("\n🛑 SmartSort system stopped by user")
     except Exception as e:
         print(f"❌ Error: {e}")
-    print("✅ Motion detection stopped")
+    finally:
+        if camera:
+            camera.close()
+        print("👋 Goodbye!")
 
 if __name__ == "__main__":
     main()
