@@ -2,3 +2,5 @@ Flask==2.3.3
 Flask-SocketIO==5.3.6
 Werkzeug==2.3.7
 requests==2.31.0
+picamera==1.13
+Pillow==10.0.1
