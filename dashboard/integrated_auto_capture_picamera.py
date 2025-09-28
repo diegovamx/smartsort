@@ -6,8 +6,8 @@ from datetime import datetime
 from inference_sdk import InferenceHTTPClient
 import requests
 import threading
-from picamera import PiCamera
-from picamera.array import PiRGBArray
+from picamera2 import Picamera2
+from libcamera import Transform
 import io
 
 # Global variables for motion detection
@@ -23,9 +23,8 @@ capture_cooldown = 20.0  # seconds between captures (allows full UI interaction 
 motion_detected_time = 0
 capture_delay = 2.0  # seconds to wait after motion before capturing
 
-# Initialize picamera
+# Initialize picamera2
 camera = None
-raw_capture = None
 
 def save_classification_result(filename, classification, confidence):
     """
@@ -312,31 +311,31 @@ def detect_motion(frame):
 
 def motion_detection_loop():
     """
-    Main motion detection loop using PiCamera
+    Main motion detection loop using PiCamera2
     """
-    global capture_triggered, last_capture_time, capture_cooldown, motion_detected_time, capture_delay, classification_in_progress, camera, raw_capture
+    global capture_triggered, last_capture_time, capture_cooldown, motion_detected_time, capture_delay, classification_in_progress, camera
     
-    # Initialize PiCamera
+    # Initialize PiCamera2
     try:
-        camera = PiCamera()
-        camera.resolution = (1280, 720)
-        camera.framerate = 30
-        raw_capture = PiRGBArray(camera, size=(1280, 720))
+        camera = Picamera2()
+        camera_config = camera.create_still_configuration(
+            main={"size": (1280, 720), "format": "RGB888"}
+        )
+        camera.configure(camera_config)
+        camera.start()
         
         # Allow camera to warm up
         time.sleep(2)
         
-        print("🎥 Starting motion detection with PiCamera...")
+        print("🎥 Starting motion detection with PiCamera2...")
         print("💡 Press 'q' to quit, or Ctrl+C to stop")
         
         # Give camera time to adjust and learn background
         print("🔄 Learning background (5 seconds)...")
         for i in range(150):  # ~5 seconds at 30fps
-            camera.capture(raw_capture, format="bgr")
-            frame = raw_capture.array
+            frame = camera.capture_array()
             if frame is not None:
                 detect_motion(frame)  # Initialize background model
-            raw_capture.truncate(0)
             time.sleep(0.033)  # ~30fps
         
         print("✅ Background learning complete!")
