@@ -39,3 +39,4 @@ def main():
         except KeyboardInterrupt:
             GPIO.cleanup()
             exit()
+main()
