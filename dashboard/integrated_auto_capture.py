@@ -7,6 +7,8 @@ from datetime import datetime
 from inference_sdk import InferenceHTTPClient
 import requests
 import threading
+import stepper_motor_control
+import RPi.GPIO as GPIO
 
 # Global variables for motion detection
 frame_count = 0
@@ -20,6 +22,32 @@ last_capture_time = 0
 capture_cooldown = 20.0  # seconds between captures (allows full UI interaction cycle)
 motion_detected_time = 0
 capture_delay = 2.0  # seconds to wait after motion before capturing
+
+classificationMap = {
+    #Recycle category
+    'plastic': 'recycle',
+    'metal': 'recycle',
+    'glass': 'recycle',
+    'green-glass': 'recycle',
+    'white-glass': 'recycle',
+    'paper': 'recycle',
+    'cardboard': 'recycle',
+    'recycle': 'recycle',
+    'recycling': 'recycle',
+
+    #Organic category
+    'organic': 'organic',
+    'food': 'organic',
+    'compost': 'organic',
+    'biological': 'organic',
+
+    #Waste category(everything else )
+    'clothes': 'waste',
+    'shoes': 'waste',
+    'electronics': 'waste',
+    'other': 'waste',
+    'waste': 'waste'
+}
 
 def save_classification_result(filename, classification, confidence):
     """
@@ -224,6 +252,11 @@ def capture_and_analyze(frame):
                 # Save classification result for dashboard (valid classifications)
                 confidence_value = confidence * 100 if confidence <= 1 else confidence
                 save_classification_result(filename, classification, round(confidence_value, 2))
+                # move motor to correct category
+                stepper_motor_control.move(classificationMap[classification], 1)
+                #???? linear actuator
+                time.sleep(1)  # placeholder, we need a delay for motor to change direction probably
+                stepper_motor_control.move(classificationMap[classification], 0)
         else:
             print("❌ No classification results for captured image")
             print("🔄 Please scan again with a clearer view of the object")
@@ -488,13 +521,15 @@ def main():
     print("=" * 70)
     print("🌐 Dashboard: Run 'python app.py' in the dashboard folder to view results")
     print("=" * 70)
-    
+    stepper_motor_control.initialize_gpio()
+
     try:
         # Start motion detection loop
         motion_detection_loop()
         
     except KeyboardInterrupt:
         print("\n🛑 Stopping motion detection...")
+        GPIO.cleanup()
     except Exception as e:
         print(f"❌ Error: {e}")
     print("✅ Motion detection stopped")
