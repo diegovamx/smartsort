@@ -1,4 +1,4 @@
-import RPi.GPIO as GPIO
+import lgpio
 import time
 # The numbers are the pun numbers of the GPIO pins on the pi
 DIR = 11 #pulses when set to 0 + moves 1 step

@@ -533,4 +533,5 @@ def main():
     print("✅ Motion detection stopped")
 
 if __name__ == "__main__":
+    print("running main...")
     main()
