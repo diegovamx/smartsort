@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from inference_sdk import InferenceHTTPClient
 import requests
-from dashboard import stepper_motor_control
+import stepper_motor_control
 import RPi.GPIO as GPIO
 
 # Global variables for motion detection
