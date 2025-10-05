@@ -4,7 +4,9 @@ import time
 DIR = 11 #pulses when set to 0 + moves 1 step
 CLK = 13 #direction, 0 = CCW, 1 = CW
 ENA = 15 #0 = off, 1 = on
+SOL = 16 #controls solenoid, 0 = down, 1 = up? idk it might be the opposite
 delay = 0.000001 # the clock pulses + time between them has to be this many seconds minimum
+linear_actuator_delay = 1 #idk
 
 trash = 40 # of steps to take
 recycling = 80
@@ -24,6 +26,9 @@ def move(category, direction):
         time.sleep(delay)
         GPIO.output(CLK, 0)
         time.sleep(delay)
+    GPIO.output(SOL, 1)
+    time.sleep(linear_actuator_delay)
+    GPIO.output(SOL, 0)
     GPIO.output()
 
 def main():

@@ -1,13 +1,11 @@
 import time
 import os
 import cv2
-import numpy as np
 import json
 from datetime import datetime
 from inference_sdk import InferenceHTTPClient
 import requests
-import threading
-import stepper_motor_control
+from dashboard import stepper_motor_control
 import RPi.GPIO as GPIO
 
 # Global variables for motion detection
