@@ -14,9 +14,10 @@ compost = 120
 stuff = {"trash": trash, "recycling":recycling, "compost": compost}
 
 def initialize_gpio():
-    GPIO.setmode(GPIO.BOARD) #as opposed to GPIO.BCM, which uses a different pin numbering scheme
-    for pin in [CLK, DIR, ENA]:
+    GPIO.setmode(GPIO.BCM) #as opposed to GPIO.BCM, which uses a different pin numbering scheme
+    for pin in [CLK, DIR, ENA, SOL]:
       GPIO.setup(pin, GPIO.OUT)
+    GPIO.setwarnings(False)
 
 def move(category, direction):
     GPIO.output(ENA, 1) # turn it on
@@ -29,10 +30,10 @@ def move(category, direction):
     GPIO.output(SOL, 1)
     time.sleep(linear_actuator_delay)
     GPIO.output(SOL, 0)
-    GPIO.output()
 
 def main():
     initialize_gpio()
+    print("initializegpio")
     while True:
         try:
             category = input() #replace this with function for receiving actual classification, should also
