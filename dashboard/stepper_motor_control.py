@@ -1,20 +1,20 @@
 import RPi.GPIO as GPIO
 import time
 # The numbers are the pun numbers of the GPIO pins on the pi
-DIR = 11 #direction, 0 = CCW, 1 = CW
-CLK = 13 #pulses when set to 0 + moves 1 step
-ENA = 15 #0 = off, 1 = on
-SOL = 12 #controls solenoid, 0 = down, 1 = up? idk it might be the opposite
+DIR = 17 #direction, 0 = CCW, 1 = CW
+CLK = 27 #pulses when set to 0 + moves 1 step
+ENA = 22 #0 = off, 1 = on
+SOL = 18 #controls solenoid, 0 = down, 1 = up? idk it might be the opposite
 delay = 0.000001 # the clock pulses + time between them has to be this many seconds minimum
 linear_actuator_delay = 1 #idk
 
 trash = 40 # of steps to take
 recycling = 80
 compost = 120
-stuff = {"trash": (trash, 1), "recycling":(recycling, 1), "compost": (compost, 1)}
+num_and_dir_steps = {"trash": (trash, 1), "recycling":(recycling, 1), "compost": (compost, 1)}
 
 def initialize_gpio():
-    GPIO.setmode(GPIO.BOARD) #as opposed to GPIO.BCM, which uses a different pin numbering scheme
+    GPIO.setmode(GPIO.BCM) #as opposed to GPIO.BCM, which uses a different pin numbering scheme
     for pin in [CLK, DIR, ENA, SOL]:
       GPIO.setup(pin, GPIO.OUT)
     GPIO.setwarnings(False)
@@ -30,6 +30,7 @@ def move(steps, direction):
     GPIO.output(SOL, 1)
     time.sleep(linear_actuator_delay)
     GPIO.output(SOL, 0)
+    GPIO.output(ENA, 0)
 
 def main():
     initialize_gpio()
@@ -38,10 +39,10 @@ def main():
         try:
             category = input() #replace this with function for receiving actual classification, should also
                           #wait on this line
-            move(*stuff[category])
+            move(*num_and_dir_steps[category])
             #something with the linear actuator
             time.sleep(1) #placeholder, we need a delay for motor to change direction probably
-            move(stuff[category][0], not stuff[category][1])
+            move(num_and_dir_steps[category][0], not num_and_dir_steps[category][1])
         except KeyboardInterrupt:
             GPIO.cleanup()
             exit()
