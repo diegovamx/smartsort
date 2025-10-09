@@ -1,10 +1,10 @@
 import RPi.GPIO as GPIO
 import time
 # The numbers are the pun numbers of the GPIO pins on the pi
-DIR = 11 #pulses when set to 0 + moves 1 step
-CLK = 13 #direction, 0 = CCW, 1 = CW
-ENA = 15 #0 = off, 1 = on
-SOL = 16 #controls solenoid, 0 = down, 1 = up? idk it might be the opposite
+DIR = 17 #direction, 0 = CCW, 1 = CW
+CLK = 27 #pulses when set to 0 + moves 1 step
+ENA = 22 #0 = off, 1 = on
+SOL = 18 #controls solenoid, 0 = down, 1 = up? idk it might be the opposite
 delay = 0.000001 # the clock pulses + time between them has to be this many seconds minimum
 linear_actuator_delay = 1 #idk
 
