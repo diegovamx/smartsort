@@ -4,7 +4,7 @@ import time
 DIR = 11 #direction, 0 = CCW, 1 = CW
 CLK = 13 #pulses when set to 0 + moves 1 step
 ENA = 15 #0 = off, 1 = on
-SOL = 18 #controls solenoid, 0 = down, 1 = up? idk it might be the opposite
+SOL = 12 #controls solenoid, 0 = down, 1 = up? idk it might be the opposite
 delay = 0.000001 # the clock pulses + time between them has to be this many seconds minimum
 linear_actuator_delay = 1 #idk
 
@@ -14,7 +14,7 @@ compost = 120
 stuff = {"trash": (trash, 1), "recycling":(recycling, 1), "compost": (compost, 1)}
 
 def initialize_gpio():
-    GPIO.setmode(GPIO.BCM) #as opposed to GPIO.BCM, which uses a different pin numbering scheme
+    GPIO.setmode(GPIO.BOARD) #as opposed to GPIO.BCM, which uses a different pin numbering scheme
     for pin in [CLK, DIR, ENA, SOL]:
       GPIO.setup(pin, GPIO.OUT)
     GPIO.setwarnings(False)
