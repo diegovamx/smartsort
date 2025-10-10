@@ -39,7 +39,7 @@ def move_solenoid():
 
 def main():
     initialize_gpio()
-    print("initializegpio")
+    print("initialize gpio")
     while True:
         try:
             category = input() #replace this with function for receiving actual classification, should also
@@ -52,4 +52,5 @@ def main():
         except KeyboardInterrupt:
             GPIO.cleanup()
             exit()
-main()
+if __name__ == "__main__":
+    main()
