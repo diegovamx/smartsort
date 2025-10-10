@@ -48,7 +48,7 @@ def main():
             move_solenoid()
             #something with the linear actuator
             time.sleep(1) #placeholder, we need a delay for motor to change direction probably
-            move(num_and_dir_steps[category][0], not num_and_dir_steps[category][1])
+            move(num_and_dir_steps[category][0], int(not num_and_dir_steps[category][1]))
         except KeyboardInterrupt:
             GPIO.cleanup()
             exit()
