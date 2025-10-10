@@ -10,9 +10,9 @@ linear_actuator_delay = 3 #idk
 MS1 = 5
 MS2 = 6
 
-trash = 40 # of steps to take
-recycling = 80
-compost = 120
+trash = 320 # of steps to take
+recycling = 640
+compost = 960
 num_and_dir_steps = {"trash": (trash, 1), "recycling":(recycling, 1), "compost": (compost, 1)}
 
 def initialize_gpio():
@@ -30,6 +30,7 @@ def move(steps, direction):
         time.sleep(delay)
         GPIO.output(CLK, 0)
         time.sleep(delay)
+        print(x)
     GPIO.output(SOL, 1)
     time.sleep(linear_actuator_delay)
     GPIO.output(SOL, 0)
