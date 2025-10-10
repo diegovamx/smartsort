@@ -5,7 +5,7 @@ DIR = 17 #direction, 0 = CCW, 1 = CW
 CLK = 27 #pulses when set to 0 + moves 1 step
 ENA = 22 #0 = off, 1 = on
 SOL = 18 #controls solenoid, 0 = down, 1 = up? idk it might be the opposite
-delay = 0.000001 # the clock pulses + time between them has to be this many seconds minimum
+delay = 0.0001 # the clock pulses + time between them has to be this many seconds minimum
 linear_actuator_delay = 3 #idk
 MS1 = 5
 MS2 = 6
