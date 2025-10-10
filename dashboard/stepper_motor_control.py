@@ -13,7 +13,7 @@ MS2 = 6
 trash = 40 # of steps to take
 recycling = 0
 compost = 40
-num_and_dir_steps = {"trash": (trash, 1), "recycling":(recycling, 1), "compost": (compost, 0)}
+num_and_dir_steps = {"waste": (trash, 1), "recycle":(recycling, 1), "organic": (compost, 0)}
 
 def initialize_gpio():
     GPIO.setmode(GPIO.BCM) #as opposed to GPIO.BCM, which uses a different pin numbering scheme
