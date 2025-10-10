@@ -250,13 +250,14 @@ def capture_and_analyze(frame):
                 # Save classification result for dashboard (valid classifications)
                 confidence_value = confidence * 100 if confidence <= 1 else confidence
                 save_classification_result(filename, classification, round(confidence_value, 2))
-                # move motor to correct category
+                print("!!!!moving motor brr please work please work why dont' you work")
                 category = classificationMap[classification]
-                stepper_motor_control.initialize_gpio()
                 stepper_motor_control.move(*stepper_motor_control.num_and_dir_steps[category])
                 stepper_motor_control.move_solenoid()
-                stepper_motor_control.move(stepper_motor_control.num_and_dir_steps[category][0], int(not stepper_motor_control.num_and_dir_steps[category][1]))
-                GPIO.cleanup()
+                stepper_motor_control.move(stepper_motor_control.num_and_dir_steps[category][0],
+                                           int(not stepper_motor_control.num_and_dir_steps[category][1]))
+                # move motor to correct category
+
         else:
             print("❌ No classification results for captured image")
             print("🔄 Please scan again with a clearer view of the object")
@@ -521,12 +522,14 @@ def main():
     print("=" * 70)
     print("🌐 Dashboard: Run 'python app.py' in the dashboard folder to view results")
     print("=" * 70)
+    stepper_motor_control.initialize_gpio()
     try:
         # Start motion detection loop
         motion_detection_loop()
         
     except KeyboardInterrupt:
         print("\n🛑 Stopping motion detection...")
+        GPIO.cleanup()
     except Exception as e:
         print(f"❌ Error: {e}")
     print("✅ Motion detection stopped")
