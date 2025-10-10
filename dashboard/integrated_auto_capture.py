@@ -294,10 +294,10 @@ def capture_and_analyze(frame):
         # It will be reset by the cooldown period in the main loop
         return True
         
-    #except Exception as e:
-    #    print(f"❌ Error capturing/analyzing image: {e}")
-    #    classification_in_progress = False
-    #    return False
+    except KeyboardInterrupt as e:
+        print(f"❌ Error capturing/analyzing image: {e}")
+        classification_in_progress = False
+        return False
 
 def detect_motion(frame):
     """
