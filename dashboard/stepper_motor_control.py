@@ -33,6 +33,8 @@ def move(steps, direction):
     GPIO.output(SOL, 1)
     time.sleep(linear_actuator_delay)
     GPIO.output(SOL, 0)
+    time.sleep(linear_actuator_delay)
+    GPIO.output(SOL, 1)
     GPIO.output(ENA, 0)
 
 def main():
