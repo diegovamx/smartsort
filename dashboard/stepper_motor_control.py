@@ -2,9 +2,13 @@ import RPi.GPIO as GPIO
 import time
 # The numbers are the pun numbers of the GPIO pins on the pi
 DIR = 17 #direction, 0 = CCW, 1 = CW
+DIR_maybe = 11
 CLK = 27 #pulses when set to 0 + moves 1 step
+CLK_maybe = 13
 ENA = 22 #0 = off, 1 = on
+ENA_maybe = 15
 SOL = 18 #controls solenoid, 0 = down, 1 = up? idk it might be the opposite
+SOL_maybe = 12
 delay = 0.000001 # the clock pulses + time between them has to be this many seconds minimum
 linear_actuator_delay = 1 #idk
 
@@ -15,22 +19,28 @@ num_and_dir_steps = {"trash": (trash, 1), "recycling":(recycling, 1), "compost":
 
 def initialize_gpio():
     GPIO.setmode(GPIO.BCM) #as opposed to GPIO.BCM, which uses a different pin numbering scheme
-    for pin in [CLK, DIR, ENA, SOL]:
+    for pin in [CLK, DIR, ENA, SOL, DIR_maybe, CLK_maybe, ENA_maybe, SOL_maybe]:
       GPIO.setup(pin, GPIO.OUT)
-    GPIO.setwarnings(False)
 
 def move(steps, direction):
     GPIO.output(ENA, 1) # turn it on
+    GPIO.output(ENA_maybe, 1)
     GPIO.output(DIR, direction) # set direction
+    GPIO.output(DIR_maybe, direction)
     for x in range(steps):
         GPIO.output(CLK, 1)
+        GPIO.output(CLK_maybe, 1)
         time.sleep(delay)
         GPIO.output(CLK, 0)
+        GPIO.output(CLK_maybe, 0)
         time.sleep(delay)
     GPIO.output(SOL, 1)
+    GPIO.output(SOL_maybe, 1)
     time.sleep(linear_actuator_delay)
     GPIO.output(SOL, 0)
+    GPIO.output(SOL_maybe, 0)
     GPIO.output(ENA, 0)
+    GPIO.output(ENA_maybe, 0)
 
 def main():
     initialize_gpio()

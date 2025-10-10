@@ -252,7 +252,6 @@ def capture_and_analyze(frame):
                 save_classification_result(filename, classification, round(confidence_value, 2))
                 # move motor to correct category
                 stepper_motor_control.move(classificationMap[classification], 1)
-                #???? linear actuator
                 time.sleep(1)  # placeholder, we need a delay for motor to change direction probably
                 stepper_motor_control.move(classificationMap[classification], 0)
         else:
