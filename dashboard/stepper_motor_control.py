@@ -11,9 +11,9 @@ MS1 = 5
 MS2 = 6
 
 trash = 40 # of steps to take
-recycling = 80
-compost = 120
-num_and_dir_steps = {"trash": (trash, 1), "recycling":(recycling, 1), "compost": (compost, 1)}
+recycling = 0
+compost = 40
+num_and_dir_steps = {"trash": (trash, 1), "recycling":(recycling, 1), "compost": (compost, 0)}
 
 def initialize_gpio():
     GPIO.setmode(GPIO.BCM) #as opposed to GPIO.BCM, which uses a different pin numbering scheme
@@ -30,10 +30,12 @@ def move(steps, direction):
         time.sleep(delay)
         GPIO.output(CLK, 0)
         time.sleep(delay)
+    GPIO.output(ENA, 0)
+
+def move_solenoid():
     GPIO.output(SOL, 1)
     time.sleep(linear_actuator_delay)
     GPIO.output(SOL, 0)
-    GPIO.output(ENA, 0)
 
 def main():
     initialize_gpio()
@@ -43,6 +45,7 @@ def main():
             category = input() #replace this with function for receiving actual classification, should also
                           #wait on this line
             move(*num_and_dir_steps[category])
+            move_solenoid()
             #something with the linear actuator
             time.sleep(1) #placeholder, we need a delay for motor to change direction probably
             move(num_and_dir_steps[category][0], not num_and_dir_steps[category][1])
