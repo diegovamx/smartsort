@@ -530,8 +530,8 @@ def main():
     except KeyboardInterrupt:
         print("\n🛑 Stopping motion detection...")
         GPIO.cleanup()
-    except Exception as e:
-        print(f"❌ Error: {e}")
+    #except Exception as e:
+    #    print(f"❌ Error: {e}")
     print("✅ Motion detection stopped")
 
 if __name__ == "__main__":
